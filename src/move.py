@@ -27,5 +27,3 @@ x1, y1 = 100, 100
 x2, y2 = 200, 200
 click_and_drag(x1, y1, x2, y2)
 print("Click positions:", click_positions)
-
-square_len 
