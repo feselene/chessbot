@@ -1,29 +1,33 @@
 import pyautogui
 from pynput.mouse import Listener
+import mss
 import time
+from inference_sdk import InferenceHTTPClient
 
-click_positions = []
+CLIENT = InferenceHTTPClient(
+    api_url="https://outline.roboflow.com",
+    api_key="23rLdZSuKttIzDN4MKCd"
+)
 
-def click_and_drag(x1, y1, x2, y2, duration=0.5):
-    pyautogui.moveTo(x1, y1)
-    pyautogui.mouseDown()
-    pyautogui.moveTo(x2, y2, duration=duration)
-    pyautogui.mouseUp()
+def capture_screenshot():
+    with mss.mss() as sct: 
+        monitor = sct.monitors[1]
+        screenshot = sct.grab(monitor)
 
-# Stop listening after 4 clicks
-def on_click (x, y, button, pressed): 
-    if pressed: 
-        click_positions.append((x, y))
-        print(f"Clicked ({x}, {y})")
-    
-    if len(click_positions) == 4:
-        print("Captured 4 clicks. Stopping listener.")
-        return False
+        output_file = "screenshot.png"
+        mss.tools.to_png(screenshot.rgb, screenshot.size, output=output_file)
+        print(f"Screenshot saved to {output_file}")
 
-with Listener(on_click=on_click) as listener: 
-    listener.join()
+capture_screenshot()
+result = CLIENT.infer("screenshot.png", model_id="chessboard-segmentation/1")
 
-x1, y1 = 100, 100
-x2, y2 = 200, 200
-click_and_drag(x1, y1, x2, y2)
-print("Click positions:", click_positions)
+print(result)
+
+CLIENT = InferenceHTTPClient(
+    api_url="https://detect.roboflow.com",
+    api_key="23rLdZSuKttIzDN4MKCd"
+)
+
+result = CLIENT.infer("screenshot.png", model_id="chessbot-v2/1")
+
+print(result)
