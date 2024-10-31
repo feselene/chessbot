@@ -1,43 +1,49 @@
-import cv2
-import numpy as np
-import mss
+import subprocess
 
-# Chessboard size: 8x8 chessboard has 7x7 internal corners
-CHESSBOARD_SIZE = (7, 7)
+def get_best_move(fen, stockfish_path="stockfish\stockfish-windows-x86-64-avx2.exe"):
+    # Start the Stockfish engine
+    process = subprocess.Popen(
+        stockfish_path, 
+        universal_newlines=True, 
+        stdin=subprocess.PIPE, 
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
 
-def find_chessboard_in_monitor(monitor, monitor_number):
-    # Capture the screenshot from the monitor
-    with mss.mss() as sct:
-        screenshot = np.array(sct.grab(monitor))
+    # Initialize communication with Stockfish
+    process.stdin.write("uci\n")
+    process.stdin.flush()
 
-    # Convert the screenshot to grayscale
-    gray = cv2.cvtColor(screenshot, cv2.COLOR_BGR2GRAY)
+    # Wait for Stockfish to be ready
+    while True:
+        output = process.stdout.readline().strip()
+        if output == "uciok":
+            break
 
-    # Find the chessboard corners
-    found, corners = cv2.findChessboardCorners(gray, CHESSBOARD_SIZE, None)
+    # Send the position (FEN) to Stockfish
+    process.stdin.write(f"position fen {fen}\n")
+    process.stdin.flush()
 
-    if found:
-        # If found, retrieve the four corner coordinates
-        top_left = tuple(corners[0][0])
-        top_right = tuple(corners[6][0])
-        bottom_left = tuple(corners[-7][0])
-        bottom_right = tuple(corners[-1][0])
+    # Tell Stockfish to calculate the best move
+    process.stdin.write("go depth 20\n")
+    process.stdin.flush()
 
-        # Output the coordinates of the four corners
-        print(f"Monitor {monitor_number}: Chessboard found")
-        print("Top Left Corner:", top_left)
-        print("Top Right Corner:", top_right)
-        print("Bottom Left Corner:", bottom_left)
-        print("Bottom Right Corner:", bottom_right)
+    # Read lines until we find the best move
+    best_move = None
+    while True:
+        output = process.stdout.readline().strip()
+        if output.startswith("bestmove"):
+            best_move = output.split(" ")[1]
+            break
 
-    else:
-        # Output -1 for each corner if chessboard not found
-        print(f"Monitor {monitor_number}: Chessboard not found")
-        print("-1 -1 -1 -1")
+    # Close the Stockfish process
+    process.stdin.write("quit\n")
+    process.stdin.flush()
+    process.terminate()
 
-# Check both monitors for the chessboard
-with mss.mss() as sct:
-    # Monitor indexing starts from 1 in mss, so we skip the first entry which is a dict of all monitors
-    for monitor_number, monitor in enumerate(sct.monitors[1:], start=1):
-        print(f"Checking Monitor {monitor_number}...")
-        find_chessboard_in_monitor(monitor, monitor_number)
+    return best_move
+
+# Example usage:
+fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+best_move = get_best_move(fen)
+print("Best move:", best_move)
