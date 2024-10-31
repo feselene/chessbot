@@ -1,49 +1,32 @@
-import subprocess
+import pyautogui
 
-def get_best_move(fen, stockfish_path="stockfish\stockfish-windows-x86-64-avx2.exe"):
-    # Start the Stockfish engine
-    process = subprocess.Popen(
-        stockfish_path, 
-        universal_newlines=True, 
-        stdin=subprocess.PIPE, 
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
+def get_square_coordinates(square, top_left, bottom_right):
+    # Calculate the dimensions of each square based on the bounding box
+    board_width = bottom_right[0] - top_left[0]
+    board_height = bottom_right[1] - top_left[1]
+    square_width = board_width / 8
+    square_height = board_height / 8
+    
+    # Convert file (letter) to 0-7 index
+    file = ord(square[0]) - ord('a')
+    # Convert rank (number) to 0-7 index, with rank 1 at the bottom
+    rank = 8 - int(square[1])
+    
+    # Calculate pixel coordinates of the center of the square
+    x = int(top_left[0] + file * square_width + square_width / 2)
+    y = int(top_left[1] + rank * square_height + square_height / 2)
+    return (x, y)
 
-    # Initialize communication with Stockfish
-    process.stdin.write("uci\n")
-    process.stdin.flush()
-
-    # Wait for Stockfish to be ready
-    while True:
-        output = process.stdout.readline().strip()
-        if output == "uciok":
-            break
-
-    # Send the position (FEN) to Stockfish
-    process.stdin.write(f"position fen {fen}\n")
-    process.stdin.flush()
-
-    # Tell Stockfish to calculate the best move
-    process.stdin.write("go depth 20\n")
-    process.stdin.flush()
-
-    # Read lines until we find the best move
-    best_move = None
-    while True:
-        output = process.stdout.readline().strip()
-        if output.startswith("bestmove"):
-            best_move = output.split(" ")[1]
-            break
-
-    # Close the Stockfish process
-    process.stdin.write("quit\n")
-    process.stdin.flush()
-    process.terminate()
-
-    return best_move
-
-# Example usage:
-fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-best_move = get_best_move(fen)
-print("Best move:", best_move)
+def click_and_drag_move(best_move, top_left, bottom_right):
+    # Parse the best move into start and end squares
+    start_square, end_square = best_move[:2], best_move[2:]
+    
+    # Get the pixel coordinates of the start and end squares
+    start_coords = get_square_coordinates(start_square, top_left, bottom_right)
+    end_coords = get_square_coordinates(end_square, top_left, bottom_right)
+    
+    # Perform the click-and-drag action
+    pyautogui.moveTo(start_coords)
+    pyautogui.mouseDown()
+    pyautogui.moveTo(end_coords)
+    pyautogui.mouseUp()

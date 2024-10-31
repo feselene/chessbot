@@ -1,3 +1,4 @@
+import pyautogui
 import cv2
 import mss
 from inference_sdk import InferenceHTTPClient
@@ -82,6 +83,8 @@ result = CLIENT.infer("screenshot.png", model_id="chessboard-segmentation/1")
 image = cv2.imread("screenshot.png")
 
 width = 740
+top_left = (0, 0)
+bottom_right = (width, width)
 
 if (result['predictions']):
     x = int(result['predictions'][0]['x'])
@@ -180,10 +183,57 @@ def get_best_move_from_fen(fen, laser_path="Laser-1_7.exe"):
         return None
 
 
+def get_square_coordinates_white(square, top_left, bottom_right):
+    # Calculate the dimensions of each square based on the bounding box
+    board_width = bottom_right[0] - top_left[0]
+    board_height = bottom_right[1] - top_left[1]
+    square_width = board_width / 8
+    square_height = board_height / 8
+    
+    # Convert file (letter) to 0-7 index
+    file = ord(square[0]) - ord('a')
+    # Convert rank (number) to 0-7 index, with rank 1 at the bottom
+    rank = 8 - int(square[1])
+    
+    # Calculate pixel coordinates of the center of the square
+    x = int(top_left[0] + file * square_width + square_width / 2)
+    y = int(top_left[1] + rank * square_height + square_height / 2)
+    return (x, y)
+
+def get_square_coordinates_black(square, top_left, bottom_right):
+    # Calculate the dimensions of each square based on the bounding box
+    board_width = bottom_right[0] - top_left[0]
+    board_height = bottom_right[1] - top_left[1]
+    square_width = board_width / 8
+    square_height = board_height / 8
+    
+    # Invert both file and rank for black-side view
+    file = 7 - (ord(square[0]) - ord('a'))  # `a` -> 7, `b` -> 6, ..., `h` -> 0
+    rank = int(square[1]) - 1  # `1` -> 0 (bottom), ..., `8` -> 7 (top)
+
+    # Calculate pixel coordinates of the center of the square
+    x = int(top_left[0] + file * square_width + square_width / 2)
+    y = int(top_left[1] + rank * square_height + square_height / 2)
+    return (x, y)
+
+
+def click_and_drag_move(best_move, top_left, bottom_right):
+    # Parse the best move into start and end squares
+    start_square, end_square = best_move[:2], best_move[2:]
+    
+    # Get the pixel coordinates of the start and end squares
+    start_coords = get_square_coordinates_black(start_square, top_left, bottom_right)
+    end_coords = get_square_coordinates_black(end_square, top_left, bottom_right)
+    
+    # Perform the click-and-drag action
+    pyautogui.moveTo(start_coords)
+    pyautogui.mouseDown()
+    pyautogui.moveTo(end_coords)
+    pyautogui.mouseUp()
+
 
 fen = generate_fen_from_predictions(result['predictions'], width)
 print(fen)
-# Example usage
-fen = "5bk1/3R4/7p/6p1/p2B4/P5P1/1Pr2PKP/8 b - - 0 1"
 best_move = get_best_move_from_fen(fen)
 print("Best move:", best_move)
+click_and_drag_move(best_move, top_left, bottom_right)
