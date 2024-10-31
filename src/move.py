@@ -7,7 +7,7 @@ CLIENT = InferenceHTTPClient(
     api_key="23rLdZSuKttIzDN4MKCd"
 )
 
-def generate_fen_from_predictions(predictions):
+def generate_fen_from_predictions(predictions, board_length = 740):
     # Map classes to chess pieces in FEN notation
     piece_map = {
         'black-king': 'k',
@@ -26,7 +26,7 @@ def generate_fen_from_predictions(predictions):
     
     # Define the board size and square size (assuming a 740x740 grid)
     board_size = 8
-    square_size = 740 // board_size  # Adjust based on actual board size in pixels if necessary
+    square_size = board_length // board_size  # Adjust based on actual board size in pixels if necessary
 
     # Initialize an empty 8x8 board
     board = [['' for _ in range(board_size)] for _ in range(board_size)]
@@ -106,5 +106,5 @@ if (result['predictions']):
 else:
     print("No prediction available.")
 
-fen = generate_fen_from_predictions(result['predictions'])
+fen = generate_fen_from_predictions(result['predictions'], width)
 print("FEN:", fen)
